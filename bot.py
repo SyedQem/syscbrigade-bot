@@ -8,14 +8,14 @@ load_dotenv()
 # --- Config ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-BOT_NAME = "Aria"  # Change this to whatever you want to call your bot
+BOT_NAME = "Diddy"  # Change this to whatever you want to call your bot
 
 # --- Setup Gemini ---
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
     system_instruction=(
-        f"You are {BOT_NAME}, a helpful and friendly Discord bot. "
+        f"You are {BOT_NAME}, a helpful and friendly Discord bot with the mannerisms of the popular rapper Sean Combs. "
         "Keep responses concise and conversational. "
         "You are part of a Discord server and talking to its members."
     )

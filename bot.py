@@ -41,8 +41,11 @@ BOT_PERSONALITY = (
 # --- Groq Setup ---
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-# Stores conversation history per channel (in-memory, resets on restart)
+# Stores conversation history per channel/thread
 conversation_history = {}
+
+# Tracks which threads were created by the bot
+bot_threads = set()
 
 # --- Discord Setup ---
 intents = discord.Intents.default()
@@ -79,6 +82,16 @@ def ask_groq(channel_id, user_input):
     return reply
 
 
+# --- Helper: send long messages in chunks ---
+async def send_reply(channel, reply):
+    if len(reply) > 1900:
+        chunks = [reply[i:i+1900] for i in range(0, len(reply), 1900)]
+        for chunk in chunks:
+            await channel.send(chunk)
+    else:
+        await channel.send(reply)
+
+
 # --- Events ---
 @client.event
 async def on_ready():
@@ -92,22 +105,26 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    # Ignore messages from the bot itself
     if message.author == client.user:
         return
 
     is_dm = isinstance(message.channel, discord.DMChannel)
     is_mentioned = client.user in message.mentions
+    is_in_bot_thread = message.channel.id in bot_threads
 
-    if not is_dm and not is_mentioned:
+    # Respond in DMs, when mentioned, or in threads the bot created
+    if not is_dm and not is_mentioned and not is_in_bot_thread:
         return
 
+    # Clean the message (strip the @mention)
     user_input = message.content.replace(f"<@{client.user.id}>", "").strip()
 
     if not user_input:
-        await message.reply("Ayo, you forgot to say something fam! Try mentioning me with a message.")
+        await message.reply("Ayo, you forgot to say something fam!")
         return
 
-    # Basic prompt injection filter
+    # Prompt injection filter
     injection_keywords = [
         "ignore previous instructions",
         "ignore all instructions",
@@ -125,14 +142,22 @@ async def on_message(message):
 
     async with message.channel.typing():
         try:
-            reply = ask_groq(message.channel.id, user_input)
+            # If mentioned in a regular channel (not already a thread), create a thread
+            if is_mentioned and not is_dm and not isinstance(message.channel, discord.Thread):
+                thread = await message.create_thread(
+                    name=f"Diddy & {message.author.display_name}",
+                    auto_archive_duration=60
+                )
+                bot_threads.add(thread.id)
 
-            if len(reply) > 1900:
-                chunks = [reply[i:i+1900] for i in range(0, len(reply), 1900)]
-                for chunk in chunks:
-                    await message.reply(chunk)
+                reply = ask_groq(thread.id, user_input)
+                await send_reply(thread, reply)
+
+            # If in a DM, bot thread, or already a thread — just reply normally
             else:
-                await message.reply(reply)
+                channel_id = message.channel.id
+                reply = ask_groq(channel_id, user_input)
+                await send_reply(message.channel, reply)
 
         except Exception as e:
             print(f"Error: {e}")

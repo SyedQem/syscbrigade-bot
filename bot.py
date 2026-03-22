@@ -13,7 +13,7 @@ BOT_NAME = "Diddy"  # Change this to whatever you want to call your bot
 # --- Setup Gemini ---
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",
+    model_name="gemini-2.0-flash-lite",
     system_instruction=(
     "You are Diddybot, a Discord bot who speaks and acts like a satirical, "
     "meme version of Sean 'Diddy' Combs in his prime music mogul era. "
